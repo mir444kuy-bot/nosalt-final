@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoSalt Pro</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container fade-in">
+        <div class="nav">
+            <div class="brand">🧂 NOSALT <span>PRO</span></div>
+            <div class="badge-live"><span class="dot dot-on"></span> LIVE</div>
+        </div>
+        
+        <div class="grid-2">
+            <div class="card card-online">
+                <div class="lbl">🟢 ONLINE NODES</div>
+                <div class="val" style="color:var(--color-seed)">
+                    <span id="t_on">0</span><span class="val-sub" style="color:var(--text-secondary)">/<span id="t_acc">0</span></span>
+                </div>
+            </div>
+            <div class="card card-offline">
+                <div class="lbl">💻 TOTAL DEVICES</div>
+                <div class="val" id="t_dev">0</div>
+            </div>
+        </div>
+        
+        <div class="stacked-hero-grid">
+            <div class="card card-hero card-stacked-hero">
+                <div class="lbl" id="lbl-total">🌱 TOTAL HARVEST</div>
+                <div class="val val-hero" id="t_seed">0</div>
+            </div>
+            <div class="card card-gem card-stacked-hero">
+                <div class="lbl">💎 TOTAL GEMS</div>
+                <div class="val val-gem" id="t_gems">0</div>
+            </div>
+        </div>
+        
+        <div class="flex-between">
+            <div class="head-title">ACTIVE NODES</div>
+            <select id="gameFilter" class="game-select" onchange="update()">
+                <option value="Garden TD">🌱 Garden TD</option>
+                <option value="Sponbob TD">🧽 Sponbob TD</option>
+            </select>
+        </div>
+        
+        <div id="list"></div>
+    </div>
+
+    <script>
+        async function update() {
+            try {
+                let game = document.getElementById('gameFilter').value;
+                let isGarden = game.includes('Garden');
+                
+                if (isGarden) {
+                    document.getElementById('lbl-total').innerText = '🌱 TOTAL HARVEST';
+                } else {
+                    document.getElementById('lbl-total').innerText = '🪙 TOTAL COIN';
+                }
+
+                let response = await fetch('/api/global?game=' + encodeURIComponent(game) + '&t=' + Date.now()); 
+                let data = await response.json();
+                
+                document.getElementById('t_on').innerText = data.stats.t_on;
+                document.getElementById('t_acc').innerText = data.stats.t_acc;
+                document.getElementById('t_dev').innerText = data.stats.t_dev;
+                document.getElementById('t_seed').innerText = data.stats.t_seed;
+                document.getElementById('t_gems').innerText = data.stats.t_gems;
+                
+                if (data.devices.length === 0) {
+                    document.getElementById('list').innerHTML = `
+                        <div style="text-align:center; padding:40px; color:#555; font-size:12px;">
+                            Waiting for data...
+                        </div>`;
+                    return;
+                }
+
+                let sortedDevices = data.devices.sort((a, b) => b.on - a.on);
+                
+                let htmlString = "";
+                for (let dev of sortedDevices) {
+                    htmlString += `
+                        <a href="/device/${dev.name}?game=${encodeURIComponent(game)}" class="item-box fade-in">
+                            <div class="item-header">
+                                <div class="item-name">🖥️ ${dev.name}</div>
+                                <div class="status-pill">
+                                    <span class="st-on">${dev.on}</span>
+                                    <span class="st-sep">|</span>
+                                    <span class="st-off">${dev.off}</span>
+                                </div>
+                            </div>
+                            <div class="item-body">
+                                <div class="stat-left">👤 ACTIVE ACCOUNTS</div>
+                                <div class="stat-right">${dev.total}</div>
+                            </div>
+                        </a>
+                    `;
+                }
+                
+                document.getElementById('list').innerHTML = htmlString;
+                
+            } catch (error) {
+                console.error("Error updating dashboard:", error);
+            }
+        }
+        
+        setInterval(update, 60000); 
+        update();
+    </script>
+</body>
+</html>

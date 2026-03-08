@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device View</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container fade-in">
+        <div class="flex-between" style="margin-top: 0;">
+            <a href="/" class="back">← DASHBOARD</a>
+            <select id="gameFilter" class="game-select" onchange="changeGame()">
+                <option value="Garden TD">🌱 Garden TD</option>
+                <option value="Sponbob TD">🧽 Sponbob TD</option>
+            </select>
+        </div>
+        
+        <h2 style="font-weight:900; font-size:24px; margin: 20px 0 25px 0;">🖥️ {{ device_name }}</h2>
+        
+        <div class="grid-2">
+            <div class="card card-online">
+                <div class="lbl">🟢 ONLINE</div>
+                <div class="val" style="color:var(--color-seed)" id="d_on">0</div>
+            </div>
+            <div class="card card-offline">
+                <div class="lbl">🔴 OFFLINE</div>
+                <div class="val" style="color:var(--danger)" id="d_off">0</div>
+            </div>
+        </div>
+        
+        <div class="stacked-hero-grid">
+            <div class="card card-hero card-stacked-hero">
+                <div class="lbl" id="lbl-device-total">🌱 DEVICE HARVEST</div>
+                <div class="val val-hero" id="d_seed">0</div>
+            </div>
+            <div class="card card-gem card-stacked-hero">
+                <div class="lbl">💎 DEVICE GEMS</div>
+                <div class="val val-gem" id="d_gems">0</div>
+            </div>
+        </div>
+        
+        <div class="flex-between">
+            <div class="head-title">ACCOUNTS LIST</div>
+            <button id="sortBtn" class="btn-sort active" onclick="toggleSort()">
+                🟢 Sort: Online
+            </button>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th width="5%">#</th>
+                        <th width="25%">USER</th>
+                        <th width="15%" style="color:var(--color-gem)">💎 GEMS</th>
+                        <th width="22%" style="color:var(--color-seed)" id="th-currency">🌱 SEED (+)</th>
+                        <th width="8%" class="center-col">RAFF</th>
+                        <th width="8%" class="center-col">LAWN</th>
+                        <th width="9%" class="center-col">TIME</th>
+                        <th width="8%" class="center-col">STAT</th>
+                    </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const name = "{{ device_name }}";
+        const urlParams = new URLSearchParams(window.location.search);
+        let game = urlParams.get('game') || 'Garden TD';
+        
+        document.getElementById('gameFilter').value = game;
+
+        let usersData = [];
+        let sortOnlineFirst = true; 
+
+        function changeGame() {
+            let selectedGame = document.getElementById('gameFilter').value;
+            window.location.href = `/device/${name}?game=${encodeURIComponent(selectedGame)}`;
+        }
+
+        function toggleSort() {
+            sortOnlineFirst = !sortOnlineFirst;
+            let btn = document.getElementById('sortBtn');
+            
+            if (sortOnlineFirst) { 
+                btn.innerHTML = `🟢 Sort: Online`; 
+                btn.classList.add('active'); 
+            } else { 
+                btn.innerHTML = `🔤 Sort: A-Z`; 
+                btn.classList.remove('active'); 
+            }
+            
+            renderTable();
+        }
+
+        function renderTable() {
+            let displayData = [...usersData];
+            let isGarden = game.includes('Garden');
+            let seedEmoji = isGarden ? '🌱' : '🪙';
+            
+            if (sortOnlineFirst) {
+                displayData.sort((a, b) => {
+                    if (b.raw_status !== a.raw_status) {
+                        return b.raw_status - a.raw_status;
+                    }
+                    return a.username.localeCompare(b.username);
+                });
+            } else {
+                displayData.sort((a, b) => a.username.localeCompare(b.username));
+            }
+
+            let htmlString = "";
+            for (let i = 0; i < displayData.length; i++) {
+                let u = displayData[i];
+                let rowClass = u.status !== 'online' ? 'row-off' : '';
+                
+                // 🟢 โชว์ Seed Diff
+                let diffText = u.diff !== "0" ? `<br><span style="color:#00ff66; font-size:9px; margin-left:4px;">+${u.diff}</span>` : '';
+                
+                // 💎 โชว์ Gem Diff (ใหม่!)
+                let gemDiffText = u.gems_diff !== "0" ? `<br><span style="color:var(--color-gem-gain); font-size:9px; margin-left:4px;">+${u.gems_diff}</span>` : '';
+
+                let raffIcon = u.raff ? '<span class="icon-ok">✔</span>' : '<span class="icon-ng">✘</span>';
+                let lawnIcon = u.lawn ? '<span class="icon-ok">✔</span>' : '<span class="icon-ng">✘</span>';
+                let statusDot = u.status === 'online' ? 'dot-on' : 'dot-off';
+                
+                htmlString += `
+                    <tr class="${rowClass} fade-in">
+                        <td style="color:var(--text-secondary)">${i + 1}</td>
+                        <td title="${u.username}" style="font-weight:800;">${u.username}</td>
+                        <td style="color:var(--color-gem); font-weight:900;">
+                            💎 ${u.gems} ${gemDiffText}
+                        </td>
+                        <td style="color:var(--color-seed); font-weight:800;">
+                            ${seedEmoji} ${u.seed} ${diffText}
+                        </td>
+                        <td class="center-col">${raffIcon}</td>
+                        <td class="center-col">${lawnIcon}</td>
+                        <td class="center-col" style="font-size:10px; color:var(--text-secondary);">${u.time_ago}</td>
+                        <td class="center-col"><span class="dot ${statusDot}"></span></td>
+                    </tr>
+                `;
+            }
+            
+            document.getElementById('rows').innerHTML = htmlString;
+        }
+
+        async function update() {
+            try {
+                let isGarden = game.includes('Garden');
+                
+                if (isGarden) {
+                    document.getElementById('lbl-device-total').innerText = '🌱 DEVICE HARVEST';
+                    document.getElementById('th-currency').innerText = '🌱 SEED (+)';
+                } else {
+                    document.getElementById('lbl-device-total').innerText = '🪙 DEVICE COIN';
+                    document.getElementById('th-currency').innerText = '🪙 COIN (+)';
+                }
+
+                let response = await fetch('/api/device/' + name + '?game=' + encodeURIComponent(game) + '&t=' + Date.now()); 
+                let data = await response.json();
+                
+                document.getElementById('d_on').innerText = data.stats.online;
+                document.getElementById('d_off').innerText = data.stats.offline;
+                document.getElementById('d_seed').innerText = data.stats.total_seed;
+                document.getElementById('d_gems').innerText = data.stats.total_gems;
+                
+                usersData = data.users;
+                renderTable(); 
+                
+            } catch (error) {
+                console.error("Update failed:", error);
+            }
+        }
+        
+        setInterval(update, 60000); 
+        update();
+    </script>
+</body>
+</html>
